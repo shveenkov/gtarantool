@@ -1,4 +1,4 @@
-gevent_tarantool
+gevent tarantool
 ================
 
 tarantool connection driver for gevent
