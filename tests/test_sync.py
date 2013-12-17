@@ -15,4 +15,4 @@ for worker_idx in range(10):
         tnt.store(1, (worker_idx + i, worker_idx + i))
 t1 = time.time() - t0
 
-print("total time for 1000 inserts: {}".format(t1))
+print("total time for 10000 inserts: {}".format(t1))

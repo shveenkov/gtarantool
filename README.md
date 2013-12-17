@@ -1,11 +1,11 @@
-======================
-gevent tarantool
-======================
+gevent tarantool python
+=======================
 
-tarantool connection driver with gevent library https://github.com/mailru/tarantool-python
+Tarantool connection driver for work with gevent library
 
 Library depends on:
 
 * tarantool
+* gevent
 
 Basic usage can be found in tests.
