@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 
-from gevent.event import AsyncResult, Event
 import gevent
+import gevent.lock
+import gevent.socket as socket
+from gevent.event import AsyncResult, Event
 
-import socket
 import errno
 import time
-import threading
 
 import tarantool
 from tarantool.const import struct_LLL
@@ -82,7 +82,7 @@ class GeventRequestPing(RequestPing):
 
 class Connection(tarantool.Connection):
     def __init__(self, *args, **kwargs):
-        self.lock = threading.Lock()
+        self.lock = gevent.lock.Semaphore()
         self._reader = None
         self._writer = None
         self._write_buffer = b""
@@ -104,7 +104,7 @@ class Connection(tarantool.Connection):
             return
         self.connected = False
         super(Connection, self).close()
-
+    
     def connect(self):
         if self.connected:
             return
@@ -113,7 +113,18 @@ class Connection(tarantool.Connection):
             if self.connected:
                 return
 
-            super(Connection, self).connect()
+            # duplicate tarantool connect vs monkey patch
+            self.connected = False
+            try:
+                if self._socket:
+                    self._socket.close()
+                self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self._socket.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
+                self._socket.connect((self.host, self.port))
+                self._socket.settimeout(self.socket_timeout)
+                self.connected = True
+            except socket.error as e:
+                raise NetworkError(e)
 
             # separate gevent thread for coro write request to tarantool socket
             if self._writer and not self._writer.ready():

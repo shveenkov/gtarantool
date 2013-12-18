@@ -1,11 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import gevent
-# use standart monkey patch from gevent
-from gevent import monkey; monkey.patch_all()
-
-import time
 import gevent_tarantool
+import time
 
 def insert_worker(tnt, worker_idx):
     for i in range(1000):
