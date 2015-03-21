@@ -30,7 +30,9 @@ Try it example:
 
 it's cool!
 see benchmark results:
-op      tarantool  gtarantool
-insert: 33.123570  11.574602
-select: 22.030409  10.305281
-delete: 32.839110  11.233938
+
+oper | tarantool | gtarantool
+--- | --- | ---
+insert | 33.123570 | 11.574602
+select | 22.030409 | 10.305281
+delete | 32.839110 | 11.233938
