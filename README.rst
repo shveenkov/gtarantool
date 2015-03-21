@@ -31,10 +31,10 @@ Try it example:
 it's cool!
 see benchmark results:
 
-=====  =====  ======
-call tarantool gtarantool
-=====  =====  ======
-insert 33.123570 11.574602
-select 22.030409 10.305281
-delete 32.839110 11.233938
-=====  =====  ======
+=========  =========  ==========
+call       tarantool  gtarantool
+=========  =========  ==========
+insert     33.123570  11.574602
+select     22.030409  10.305281
+delete     32.839110  11.233938
+=========  =========  ==========
