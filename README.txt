@@ -28,13 +28,14 @@ Try it example:
 
     gevent.joinall(jobs)
 
-it's cool!
-see benchmark results:
+Under this scheme the gtarantool driver makes a smaller number of read/write tarantool socket.
+
+See benchmark results:
 
 =========  =========  ==========
 call       tarantool  gtarantool
 =========  =========  ==========
-insert     33.123570  11.574602
-select     22.030409  10.305281
-delete     32.839110  11.233938
+insert     32.448247  10.072774
+select     22.326968  9.305423
+delete     33.535188  9.464293
 =========  =========  ==========
