@@ -3,16 +3,12 @@
 import time
 import tarantool
 
-def insert_worker(tnt, worker_idx):
-    for i in range(100):
-        tnt.store(1, (worker_idx + i, worker_idx + i))
-
-tnt = tarantool.connect('127.0.0.1', 33013)
+tnt = tarantool.connect("127.0.0.1", 3301)
 
 t0 = time.time()
-for worker_idx in range(10):
-    for i in range(1000):
-        tnt.store(1, (worker_idx + i, worker_idx + i))
+for cnt in range(100000):
+    tnt.insert("tester", (cnt, cnt))
+
 t1 = time.time() - t0
 
-print("total time for 10000 inserts: {}".format(t1))
+print("total time for 100000 inserts: {0}".format(t1))
