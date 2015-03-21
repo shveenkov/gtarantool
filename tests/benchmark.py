@@ -109,6 +109,6 @@ t2 = time.time()
 benchmark["gtarantool"]["delete"] = t2 - t1
 
 print("\nbenchmark results:")
-print("op      tarantool  gtarantool")
+print("call    tarantool  gtarantool")
 for k in ("insert", "select", "delete"):
     print("{2:6}: {0:0.6f}  {1:0.6f}".format(benchmark["tarantool"][k], benchmark["gtarantool"][k], k))
