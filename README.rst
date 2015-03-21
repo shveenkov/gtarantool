@@ -1,6 +1,11 @@
 Tarantool connection driver for work with gevent framework
 ----------------------------------------------------------
-Try it example !
+Connector required tarantool version 1.6
+For install connector ::
+
+    $ pip install gtarantool
+
+Try it example:
 
 .. code:: python
 
@@ -24,4 +29,4 @@ Try it example !
 
     gevent.joinall(jobs)
 
-it's cool!
+it's cool !

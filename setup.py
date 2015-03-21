@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(
-    name="gevent tarantool",
+    name="gtarantool",
     py_modules=["gtarantool"],
     version="1.0.1",
     author="Dmitry Shveenkov",
