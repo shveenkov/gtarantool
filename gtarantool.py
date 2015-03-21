@@ -104,6 +104,11 @@ class TarantoolCoroConnection(tarantool.Connection):
         self.req_num = 0
         self.req_event = {}
         self._send_request = self._send_request_check_connected
+
+        self.gbuf_size = kwargs.pop("gbuf_size", 16384)
+
+        assert isinstance(self.gbuf_size, int);
+
         super(TarantoolCoroConnection, self).__init__(*args, **kwargs)
 
     def gen_req_event(self):
@@ -187,7 +192,7 @@ class TarantoolCoroConnection(tarantool.Connection):
             buf = b""
             while self.connected:
                 # chunk socket read
-                tmp_buf = self._socket.recv(4096)
+                tmp_buf = self._socket.recv(self.gbuf_size)
                 if not tmp_buf:
                     raise NetworkError(socket.error(errno.ECONNRESET, "Lost connection to server during query"))
 

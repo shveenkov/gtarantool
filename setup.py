@@ -5,7 +5,7 @@ from distutils.core import setup
 setup(
     name="gtarantool",
     py_modules=["gtarantool"],
-    version="1.0.3",
+    version="1.0.4",
     author="Dmitry Shveenkov",
     author_email="shveenkov@mail.ru",
     url="https://github.com/shveenkov/gtarantool",
