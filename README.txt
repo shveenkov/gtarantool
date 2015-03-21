@@ -17,8 +17,8 @@ Try it example:
         global cnt
 
         for i in range(10000):
-            tnt.insert("tester", (cnt, cnt))
             cnt += 1
+            tnt.insert("tester", (cnt, cnt))
 
 
     tnt = gtarantool.connect("127.0.0.1", 3301)
