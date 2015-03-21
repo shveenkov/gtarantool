@@ -1,7 +1,6 @@
 Tarantool connection driver for work with gevent framework
 ----------------------------------------------------------
-Connector required tarantool version 1.6
-For install connector ::
+Connector required tarantool version 1.6:
 
     $ pip install gtarantool
 
