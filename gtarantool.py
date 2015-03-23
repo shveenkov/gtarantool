@@ -42,6 +42,8 @@ from tarantool.const import (
 
 def connect(host="localhost", port=3301):
     return TarantoolCoroConnection(host, port,
+                                   user=None,
+                                   password=None,
                                    socket_timeout=SOCKET_TIMEOUT,
                                    reconnect_max_attempts=RECONNECT_MAX_ATTEMPTS,
                                    reconnect_delay=RECONNECT_DELAY,
@@ -111,6 +113,9 @@ class TarantoolCoroConnection(tarantool.Connection):
 
         super(TarantoolCoroConnection, self).__init__(*args, **kwargs)
 
+        # important not raise exception in reader
+        self.error = False
+
     def gen_req_event(self):
         self.req_num += 1
         if self.req_num > 10000000:
@@ -147,13 +152,13 @@ class TarantoolCoroConnection(tarantool.Connection):
             except socket.error as ex:
                 raise NetworkError(ex)
 
-            # separate gevent thread for coro write request to tarantool socket
+            # separate gevent thread for write request to tarantool socket
             if self._writer and not self._writer.ready():
                 self._writer.kill()
 
             self._writer = gevent.spawn(self.request_writer)
 
-            # separate gevent thread for coro read response from tarantool socket
+            # separate gevent thread for read response from tarantool socket
             if self._reader and not self._reader.ready():
                 self._reader.kill()
 
@@ -256,6 +261,9 @@ class TarantoolCoroConnection(tarantool.Connection):
                 raise ex
 
             if response.completion_status != 1:
+                if response.return_code != 0:
+                    raise DatabaseError(response.return_code, response.return_message)
+
                 return response
 
             warn(response.return_message, RetryWarning)
