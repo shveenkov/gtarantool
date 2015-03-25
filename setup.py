@@ -1,11 +1,20 @@
 # -*- coding: utf-8 -*-
 
-from distutils.core import setup
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
+
+# Read package version without importing it
+for line in open("gtarantool.py"):
+    if line.startswith("__version__"):
+        exec line
+        break
 
 setup(
     name="gtarantool",
     py_modules=["gtarantool"],
-    version="1.0.6",
+    version=__version__,
     author="Dmitry Shveenkov",
     author_email="shveenkov@mail.ru",
     url="https://github.com/shveenkov/gtarantool",
