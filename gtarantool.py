@@ -6,23 +6,12 @@ import gevent.socket as socket
 from gevent.event import AsyncResult, Event
 
 import errno
-import time
 import msgpack
 import base64
 
 import tarantool
-from tarantool.utils import check_key
 from tarantool.response import Response
-from tarantool.request import (
-    Request,
-    RequestSelect,
-    RequestReplace,
-    RequestUpdate,
-    RequestInsert,
-    RequestDelete,
-    RequestCall,
-    RequestPing,
-    RequestAuthenticate)
+from tarantool.request import Request
 
 from tarantool.error import (
     NetworkError,
@@ -32,94 +21,45 @@ from tarantool.error import (
 
 from tarantool.const import (
     SOCKET_TIMEOUT,
-    IPROTO_CODE,
-    IPROTO_SYNC,
     RETRY_MAX_ATTEMPTS,
     RECONNECT_MAX_ATTEMPTS,
     RECONNECT_DELAY,
     IPROTO_GREETING_SIZE)
 
 
-def connect(host="localhost", port=3301):
-    return TarantoolCoroConnection(host, port,
-                                   user=None,
-                                   password=None,
-                                   socket_timeout=SOCKET_TIMEOUT,
-                                   reconnect_max_attempts=RECONNECT_MAX_ATTEMPTS,
-                                   reconnect_delay=RECONNECT_DELAY,
-                                   connect_now=True)
+def connect(host="localhost", port=3301, user=None, password=None):
+    return GConnection(host, port,
+                       user=user,
+                       password=password,
+                       socket_timeout=SOCKET_TIMEOUT,
+                       reconnect_max_attempts=RECONNECT_MAX_ATTEMPTS,
+                       reconnect_delay=RECONNECT_DELAY,
+                       connect_now=True)
 
 
-class GResponse(Response):
-    def get_sync(self):
-        return self._sync
-
-
-class GRequest(Request):
-    def header(self, length):
-        self.id = self.conn.gen_req_event()
-
-        header = msgpack.dumps({IPROTO_CODE: self.request_type, IPROTO_SYNC: self.id})
-
-        return msgpack.dumps(length + len(header)) + header
-
-
-class GRequestAuthenticate(GRequest, RequestAuthenticate):
-    pass
-
-
-class GRequestReplace(GRequest, RequestReplace):
-    pass
-
-
-class GRequestSelect(GRequest, RequestSelect):
-    pass
-
-
-class GRequestUpdate(GRequest, RequestUpdate):
-    pass
-
-
-class GRequestInsert(GRequest, RequestInsert):
-    pass
-
-
-class GRequestDelete(GRequest, RequestDelete):
-    pass
-
-
-class GRequestCall(GRequest, RequestCall):
-    pass
-
-
-class GRequestPing(GRequest, RequestPing):
-    pass
-
-
-class TarantoolCoroConnection(tarantool.Connection):
+class GConnection(tarantool.Connection):
     def __init__(self, *args, **kwargs):
         self.lock = gevent.lock.Semaphore()
         self._reader = None
         self._writer = None
         self._write_buffer = b""
         self._write_event = Event()
+        self._auth_event = Event()
         self.req_num = 0
         self.req_event = {}
-        self._send_request = self._send_request_check_connected
-
         self.gbuf_size = kwargs.pop("gbuf_size", 16384)
 
         assert isinstance(self.gbuf_size, int);
 
-        super(TarantoolCoroConnection, self).__init__(*args, **kwargs)
+        super(GConnection, self).__init__(*args, **kwargs)
 
-        # important not raise exception in reader
-        self.error = False
+        self.error = False  # important not raise exception in response reader
 
-    def gen_req_event(self):
+    def generate_sync(self):
         self.req_num += 1
         if self.req_num > 10000000:
             self.req_num = 0
+
         self.req_event[self.req_num] = AsyncResult()
         return self.req_num
 
@@ -128,7 +68,7 @@ class TarantoolCoroConnection(tarantool.Connection):
             return
 
         self.connected = False
-        super(TarantoolCoroConnection, self).close()
+        super(GConnection, self).close()
 
     def connect(self):
         if self.connected:
@@ -166,6 +106,10 @@ class TarantoolCoroConnection(tarantool.Connection):
 
             self._write_buffer = b""
 
+            if self.user:
+                self._auth_event.wait()
+                self.authenticate(self.user, self.password)
+
     def request_writer(self):
         try:
             while self.connected:
@@ -191,8 +135,7 @@ class TarantoolCoroConnection(tarantool.Connection):
             # need handshake here
             greeting = self._socket.recv(IPROTO_GREETING_SIZE)
             self._salt = base64.decodestring(greeting[64:])[:20]
-            if self.user:
-                self.authenticate(self.user, self.password)
+            self._auth_event.set()
 
             buf = b""
             while self.connected:
@@ -215,12 +158,12 @@ class TarantoolCoroConnection(tarantool.Connection):
                     body = buf[curr + 5:curr + 5 + length]
                     curr += 5 + length
 
-                    response = GResponse(self, body)  # unpack response
+                    response = Response(self, body)  # unpack response
 
                     # set AsyncResult
-                    request_id = response.get_sync()
-                    if request_id in self.req_event:
-                        self.req_event[request_id].set((response, None))
+                    sync = response.sync
+                    if sync in self.req_event:
+                        self.req_event[sync].set((response, None))
 
                 # one cut for buffer
                 if curr:
@@ -235,28 +178,21 @@ class TarantoolCoroConnection(tarantool.Connection):
                 for event in self.req_event.values():
                     event.set((None, ex))
 
-    def _read_response(self, request_id):
-        response, ex = self.req_event[request_id].get()
-        del self.req_event[request_id]
-
-        return response, ex
-
-    def _send_request_check_connected(self, request):
+    def _send_request(self, request):
         assert isinstance(request, Request)
 
         if not self.connected:
             self.connect()
 
-        return self._send_request_wo_reconnect(request)
-
-    def _send_request_wo_reconnect(self, request):
-        assert isinstance(request, Request)
-
         for attempt in xrange(RETRY_MAX_ATTEMPTS):
             self._write_buffer += bytes(request)
             self._write_event.set()
 
-            response, ex = self._read_response(request.id)
+            # read response
+            sync = request.sync
+            response, ex = self.req_event[sync].get()
+            del self.req_event[sync]
+
             if ex is not None:
                 raise ex
 
@@ -270,91 +206,3 @@ class TarantoolCoroConnection(tarantool.Connection):
 
         # Raise an error if the maximum number of attempts have been made
         raise DatabaseError(response.return_code, response.return_message)
-
-    def call(self, func_name, *args):
-        assert isinstance(func_name, str)
-
-        if len(args) == 1 and isinstance(args[0], (list, tuple)):
-            args = args[0]
-
-        request = GRequestCall(self, func_name, args)
-        return self._send_request(request)
-
-    def replace(self, space_name, values):
-        if isinstance(space_name, basestring):
-            space_name = self.schema.get_space(space_name).sid
-
-        request = GRequestReplace(self, space_name, values)
-        return self._send_request(request)
-
-    def authenticate(self, user, password):
-        self.user = user
-        self.password = password
-
-        if not self.connected:
-            self.connect()
-
-        request = GRequestAuthenticate(self, self._salt, user, password)
-        return self._send_request(request)
-
-    def insert(self, space_name, values):
-        if isinstance(space_name, basestring):
-            space_name = self.schema.get_space(space_name).sid
-
-        request = GRequestInsert(self, space_name, values)
-        return self._send_request(request)
-
-    def delete(self, space_name, key, **kwargs):
-        index_name = kwargs.get("index", 0)
-
-        key = check_key(key)
-        if isinstance(space_name, basestring):
-            space_name = self.schema.get_space(space_name).sid
-
-        if isinstance(index_name, basestring):
-            index_name = self.schema.get_index(space_name, index_name).iid
-
-        request = GRequestDelete(self, space_name, index_name, key)
-        return self._send_request(request)
-
-    def update(self, space_name, key, op_list, **kwargs):
-        index_name = kwargs.get("index", 0)
-        key = check_key(key)
-
-        if isinstance(space_name, basestring):
-            space_name = self.schema.get_space(space_name).sid
-
-        if isinstance(index_name, basestring):
-            index_name = self.schema.get_index(space_name, index_name).iid
-
-        request = GRequestUpdate(self, space_name, index_name, key, op_list)
-        return self._send_request(request)
-
-    def ping(self, notime=False):
-        request = GRequestPing(self)
-        t0 = time.time()
-        self._send_request(request)
-        t1 = time.time()
-
-        if notime:
-            return "Success"
-
-        return t1 - t0
-
-    def select(self, space_name, key=None, **kwargs):
-        offset = kwargs.get("offset", 0)
-        limit = kwargs.get("limit", 0xffffffff)
-        index_name = kwargs.get("index", 0)
-        iterator_type = kwargs.get("iterator", 0)
-
-        key = check_key(key, select=True)
-
-        if isinstance(space_name, basestring):
-            space_name = self.schema.get_space(space_name).sid
-
-        if isinstance(index_name, basestring):
-            index_name = self.schema.get_index(space_name, index_name).iid
-
-        request = GRequestSelect(self, space_name, index_name, key, offset, limit, iterator_type)
-        response = self._send_request(request)
-        return response
