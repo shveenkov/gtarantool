@@ -1,20 +1,22 @@
 # -*- coding: utf-8 -*-
 
+import re
+
 try:
     from setuptools import setup
 except ImportError:
     from distutils.core import setup
 
-# Read package version without importing it
-for line in open("gtarantool.py"):
-    if line.startswith("__version__"):
-        exec line
-        break
+
+def find_version():
+    for line in open("gtarantool.py"):
+        if line.startswith("__version__"):
+            return re.match(r"""__version__\s*=\s*(['"])([^'"]+)\1""", line).group(2)
 
 setup(
     name="gtarantool",
     py_modules=["gtarantool"],
-    version=__version__,
+    version=find_version(),
     author="Dmitry Shveenkov",
     author_email="shveenkov@mail.ru",
     url="https://github.com/shveenkov/gtarantool",

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__version__ = "1.0.7"
+__version__ = "1.0.8"
 
 import gevent
 import gevent.lock
@@ -51,7 +51,7 @@ class GConnection(tarantool.Connection):
         self.req_event = {}
         self.gbuf_size = kwargs.pop("gbuf_size", 16384)
 
-        assert isinstance(self.gbuf_size, int);
+        assert isinstance(self.gbuf_size, int)
 
         super(GConnection, self).__init__(*args, **kwargs)
 
