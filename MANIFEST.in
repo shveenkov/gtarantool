@@ -2,4 +2,4 @@ include README.txt
 include README.rst
 include setup.py
 include gtarantool.py
-recursive-include tests/*.py
+recursive-include tests/ *.py

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__version__ = "1.0.8"
+__version__ = "1.0.9"
 
 import gevent
 import gevent.lock
@@ -186,7 +186,7 @@ class GConnection(tarantool.Connection):
         if not self.connected:
             self.connect()
 
-        for attempt in xrange(RETRY_MAX_ATTEMPTS):
+        for attempt in range(RETRY_MAX_ATTEMPTS):
             self._write_buffer += bytes(request)
             self._write_event.set()
 
