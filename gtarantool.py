@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__version__ = "1.0.9"
+__version__ = "1.0.10"
 
 import gevent
 import gevent.lock
@@ -14,6 +14,7 @@ import base64
 import tarantool
 from tarantool.response import Response
 from tarantool.request import Request
+from tarantool.schema import Schema
 
 from tarantool.error import (
     NetworkError,
@@ -39,6 +40,29 @@ def connect(host="localhost", port=3301, user=None, password=None):
                        connect_now=True)
 
 
+class GSchema(Schema):
+    def get_space(self, space):
+        if space in self.schema:
+            return self.schema[space]
+
+        with self.con.lock:
+            if space in self.schema:
+                return self.schema[space]
+
+            return super(GSchema, self).get_space(space)
+
+    def get_index(self, space, index):
+        _space = self.get_space(space)
+        if index in _space.indexes:
+            return _space.indexes[index]
+
+        with self.con.lock:
+            if index in _space.indexes:
+                return _space.indexes[index]
+
+            return super(GSchema, self).get_index(space, index)
+
+
 class GConnection(tarantool.Connection):
     def __init__(self, *args, **kwargs):
         self.lock = gevent.lock.Semaphore()
@@ -56,6 +80,7 @@ class GConnection(tarantool.Connection):
         super(GConnection, self).__init__(*args, **kwargs)
 
         self.error = False  # important not raise exception in response reader
+        self.schema = GSchema(self)  # need schema with lock
 
     def generate_sync(self):
         self.req_num += 1

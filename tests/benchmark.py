@@ -2,8 +2,6 @@
 
 import time
 import tarantool
-import gtarantool
-import gevent
 
 benchmark = {
     "tarantool": {},
@@ -16,37 +14,39 @@ tnt = tarantool.connect("127.0.0.1", 3301)
 
 import string
 mod_len = len(string.printable)
-data = [string.printable[it] * 1536 for it in xrange(mod_len)]
+data = [string.printable[it] * 1536 for it in range(mod_len)]
 
 # sync benchmark
 # insert test
-print "tarantool insert test"
+print("tarantool insert test")
 t1 = time.time()
-for it in xrange(100000):
+for it in range(100000):
     r = tnt.insert("tester", (it, data[it % mod_len]))
 
 t2 = time.time()
 benchmark["tarantool"]["insert"] = t2 - t1
 
 # select test
-print "tarantool select test"
+print("tarantool select test")
 t1 = time.time()
-for it in xrange(100000):
+for it in range(100000):
     r = tnt.select("tester", it)
 
 t2 = time.time()
 benchmark["tarantool"]["select"] = t2 - t1
 
 # delete test
-print "tarantool delete test"
+print("tarantool delete test")
 t1 = time.time()
-for it in xrange(100000):
+for it in range(100000):
     r = tnt.delete("tester", it)
 
 t2 = time.time()
 benchmark["tarantool"]["delete"] = t2 - t1
 
 # gevent benchmark
+import gtarantool
+import gevent
 
 
 def insert_job(tnt):
