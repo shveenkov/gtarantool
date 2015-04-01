@@ -64,6 +64,8 @@ class GSchema(Schema):
 
 
 class GConnection(tarantool.Connection):
+    DatabaseError = DatabaseError
+
     def __init__(self, *args, **kwargs):
         self.lock = gevent.lock.Semaphore()
         self._reader = None
@@ -218,6 +220,7 @@ class GConnection(tarantool.Connection):
             # read response
             sync = request.sync
             response, ex = self.req_event[sync].get()
+            # fix me
             del self.req_event[sync]
 
             if ex is not None:
