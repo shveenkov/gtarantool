@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__version__ = "1.0.10"
+__version__ = "1.0.11"
 
 import gevent
 import gevent.lock
@@ -44,7 +44,10 @@ class GSchema(Schema):
     def get_space(self, space):
         if space in self.schema:
             return self.schema[space]
-
+        
+        if not self.con.connected:
+            self.con.connect()
+        
         with self.con.lock:
             if space in self.schema:
                 return self.schema[space]
@@ -55,7 +58,10 @@ class GSchema(Schema):
         _space = self.get_space(space)
         if index in _space.indexes:
             return _space.indexes[index]
-
+        
+        if not self.con.connected:
+            self.con.connect()
+        
         with self.con.lock:
             if index in _space.indexes:
                 return _space.indexes[index]
