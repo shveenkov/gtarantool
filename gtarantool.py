@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__version__ = "1.0.11"
+__version__ = "1.0.12"
 
 import gevent
 import gevent.lock
@@ -13,7 +13,7 @@ import base64
 
 import tarantool
 from tarantool.response import Response
-from tarantool.request import Request
+from tarantool.request import Request, RequestAuthenticate
 from tarantool.schema import Schema
 
 from tarantool.error import (
@@ -44,10 +44,10 @@ class GSchema(Schema):
     def get_space(self, space):
         if space in self.schema:
             return self.schema[space]
-        
+
         if not self.con.connected:
             self.con.connect()
-        
+
         with self.con.lock:
             if space in self.schema:
                 return self.schema[space]
@@ -58,10 +58,10 @@ class GSchema(Schema):
         _space = self.get_space(space)
         if index in _space.indexes:
             return _space.indexes[index]
-        
+
         if not self.con.connected:
             self.con.connect()
-        
+
         with self.con.lock:
             if index in _space.indexes:
                 return _space.indexes[index]
@@ -144,6 +144,12 @@ class GConnection(tarantool.Connection):
             if self.user:
                 self._auth_event.wait()
                 self.authenticate(self.user, self.password)
+
+    def authenticate(self, user, password):
+        self.user = user
+        self.password = password
+        request = RequestAuthenticate(self, self._salt, self.user, self.password)
+        return self._send_request(request)
 
     def request_writer(self):
         try:
